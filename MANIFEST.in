@@ -1,0 +1,5 @@
+include README.md LICENSE CITATION.cff THIRD_PARTY_DATA.md
+recursive-include data *.jsonl *.json *.txt *.md
+recursive-include docs *.md *.png
+recursive-include paper *.tex *.bib *.png *.pdf *.md
+recursive-include tests *.py

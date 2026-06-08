@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: "SUPERCUTE: Tokenizer Friction and Long-Horizon Exact Execution"
+message: "If you use SUPERCUTE, please cite the paper and repository."
+type: software
+authors:
+  - name: "SUPERCUTE contributors"
+version: "0.1.0"
+date-released: "2026-06-08"
+license: "MIT"
+repository-code: "https://github.com/clark-labs-inc/supercute"
+keywords:
+  - large language models
+  - benchmark
+  - tokenization
+  - long-horizon execution
+  - exact evaluation

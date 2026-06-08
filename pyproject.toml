@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "supercute-benchmark"
+version = "0.1.0"
+description = "SUPERCUTE: deterministic exact-state benchmarks for tokenizer friction and long-horizon execution in LLMs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "SUPERCUTE contributors"}]
+keywords = ["LLM", "benchmark", "tokenization", "long-horizon", "evaluation", "reasoning"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+analysis = ["matplotlib>=3.8"]
+datasets = ["datasets>=2.19"]
+dev = ["pytest>=8", "ruff>=0.5", "mypy>=1.10", "matplotlib>=3.8"]
+
+[project.urls]
+Homepage = "https://github.com/clark-labs-inc/supercute"
+Repository = "https://github.com/clark-labs-inc/supercute"
+Paper = "https://github.com/clark-labs-inc/supercute/tree/main/paper"
+
+[project.scripts]
+supercute-sweep = "supercute.sweep:main"
+supercute-run = "supercute.run:main"
+supercute-benchmark = "supercute.benchmark:main"
+supercute-evaluate = "supercute.evaluate:main"
+supercute-selfcheck = "supercute.selfcheck:main"
+supercute-generate = "supercute.generate:main"
+supercute-full-eval = "supercute.full_eval:main"
+supercute-analyze = "supercute.analyze_eval:main"
+supercute-error-audit = "supercute.error_audit:main"
+
+[tool.setuptools]
+packages = ["supercute"]
+
+[tool.setuptools.package-data]
+supercute = ["py.typed"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
