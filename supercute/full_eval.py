@@ -19,7 +19,8 @@ from supercute.grade import grade_robust
 from supercute import scenarios_tok, scenarios_hard, scenarios_realtok
 
 MODELS = ["openai/gpt-5.5", "anthropic/claude-opus-4.8", "deepseek/deepseek-v4-pro",
-          "minimax/minimax-m3", "qwen/qwen3.7-plus", "qwen/qwen3.5-flash-02-23"]
+          "minimax/minimax-m3", "qwen/qwen3.7-plus", "qwen/qwen3.5-flash-02-23",
+          "nex-agi/nex-n2-pro:free", "anthropic/claude-fable-5"]
 REALTOK_TASKS = sorted(scenarios_realtok.TASKS)
 LUT_L = 22
 LUT_K = [15, 30, 45, 60, 75]
@@ -66,8 +67,10 @@ def build_jobs(n):
 # reasoning budget, or the comparison is reasoning-on vs reasoning-off. Anthropic models
 # need this explicitly; OpenAI/DeepSeek/MiniMax reason by default.
 REASONING = {"anthropic/claude-opus-4.8": {"effort": "medium"},
+             "anthropic/claude-fable-5": {"effort": "medium"},
              "qwen/qwen3.7-plus": {"effort": "medium"},
-             "qwen/qwen3.5-flash-02-23": {"effort": "medium"}}
+             "qwen/qwen3.5-flash-02-23": {"effort": "medium"},
+             "nex-agi/nex-n2-pro:free": {"effort": "medium"}}
 
 
 def call(model, prompt, key, timeout):

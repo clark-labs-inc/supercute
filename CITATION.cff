@@ -1,9 +1,12 @@
 cff-version: 1.2.0
-title: "SUPERCUTE: Tokenizer Friction and Long-Horizon Exact Execution"
+title: "SUPERCUTE: Measuring Exact Character Perception and Long-Workflow State Tracking in Language Models"
 message: "If you use SUPERCUTE, please cite the paper and repository."
 type: software
 authors:
-  - name: "SUPERCUTE contributors"
+  - family-names: "Kirdey"
+    given-names: "Stanislav"
+    email: "stan@clarkslabs.com"
+  - name: "Clark Labs Inc."
 version: "0.1.0"
 date-released: "2026-06-08"
 license: "MIT"
@@ -14,3 +17,12 @@ keywords:
   - tokenization
   - long-horizon execution
   - exact evaluation
+preferred-citation:
+  type: article
+  title: "SUPERCUTE: Measuring Exact Character Perception and Long-Workflow State Tracking in Language Models"
+  year: 2026
+  authors:
+    - family-names: "Kirdey"
+      given-names: "Stanislav"
+      email: "stan@clarkslabs.com"
+    - name: "Clark Labs Inc."

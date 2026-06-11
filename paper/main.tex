@@ -19,7 +19,7 @@
 \setlength{\parskip}{2pt}
 \setlength{\parindent}{10pt}
 
-\title{\vspace{-1.3em}\textbf{SUPERCUTE: From Tokenizer Friction to Model-Specific Long-Horizon Breaks}}
+\title{\vspace{-1.3em}\textbf{SUPERCUTE: Measuring Exact Character Perception and Long-Workflow State Tracking in Language Models}}
 \author{Stanislav Kirdey\\Clark Labs Inc.\\\texttt{stan@clarkslabs.com}}
 \date{June 2026}
 
@@ -30,7 +30,7 @@
 \begin{minipage}{0.92\textwidth}
 \small
 \noindent\textbf{Abstract.}
-Many character-level benchmarks assume that tokenizer friction is the main weakness of large language models. SUPERCUTE tests that assumption with deterministic, exactly graded tasks. We evaluate six reasoning-enabled models on three scored tiers: tokenizer perception probes, realistic tokenizer-sensitive workflows, and a controlled long-horizon execution stress test. We also release PublicLift, an unscored set of public-dataset-derived hardening templates. In this pilot run, tokenizer perception does not reliably break GPT-5.5: it scores 149/152 on probes involving homoglyphs, zero-width characters, Unicode normalization, code points, UTF-8 byte length, and grapheme operations. Realistic mutable workflows are harder: GPT-5.5 scores 50/64, while the weakest model scores 14/64. The controlled \task{iterated\_lut} tier shows a model-specific long-horizon break: GPT-5.5 falls from 7/8 at 330 interdependent updates to 0/8 at 1320 updates, but Claude Opus 4.8 scores 33/40 overall and reaches 8/8 at the same 1320-update setting. Thus the evidence does not support a universal frontier wall. It supports a narrower claim: isolated tokenizer perception is a weak stressor for GPT-5.5, while exact execution over long mutable state produces high-variance, model-dependent failures that require larger sweeps and token-budget-controlled comparisons.
+SUPERCUTE measures two things about language models. First, how well they perceive exact character-level details such as Unicode normalization, homoglyphs, zero-width characters, and grapheme boundaries. Second, how reliably they track and update precise state in long real-world workflows, like replaying dozens of CRM record edits or applying sequential legal redlines to a contract. Every task is generated and graded by deterministic Python code; no model ever judges another model's answer. We evaluate six reasoning-enabled models on three scored tiers: character perception probes, realistic workflows, and a controlled long-horizon stress test. We also release PublicLift, an unscored set of templates that turn public-dataset records into fresh exact-state tasks. The character probes turn out not to be the hard part: GPT-5.5 scores 149/152 on homoglyphs, zero-width characters, Unicode normalization, code points, UTF-8 byte length, and grapheme operations. Doing real work with those characters is harder: GPT-5.5 scores 50/64 on the workflow tier, and the weakest model scores 14/64. The controlled \task{iterated\_lut} tier shows the sharpest split: GPT-5.5 falls from 7/8 at 330 dependent updates to 0/8 at 1320 updates, while Claude Opus 4.8 scores 33/40 overall and goes 8/8 at the same 1320-update setting. So there is no universal frontier wall here. The honest claim is narrower: seeing tricky characters is largely solved for GPT-5.5, but carrying exact state through hundreds of small dependent changes fails in high-variance, model-specific ways that deserve larger sweeps and token-budget-controlled comparisons.
 \vspace{0.6em}
 \end{minipage}
 \end{center}
@@ -38,29 +38,29 @@ Many character-level benchmarks assume that tokenizer friction is the main weakn
 ]
 
 \section{Introduction}
-Character-level errors matter in everyday work. A single invisible character can change a customer ID. A confusable letter can split an invoice group. A line number in a patch can shift after one edit. A contract amendment can refer to a clause by a visually similar but distinct identifier. Earlier tokenizer-focused work, such as CUTE \citep{edman2024cute}, made this problem concrete by asking whether language models can reason about the characters inside their tokens. Recent work such as CharBench \citep{uzan2026charbench} continues to show that character-level counting and position tasks remain hard for many models.
+One wrong character can ruin a day of work. A single invisible character can change a customer ID. A Cyrillic letter that looks like a Latin one can split an invoice group in two. A line number in a patch shifts after one edit, and every later edit lands in the wrong place. A contract amendment can point at a clause whose identifier looks right but is not. Earlier work such as CUTE \citep{edman2024cute} made the perception half of this problem concrete by asking whether language models can reason about the characters inside their tokens, and CharBench \citep{uzan2026charbench} shows that character counting and position tasks remain hard for many models.
 
-This paper asks a narrower question: what still fails when a frontier reasoning model is allowed to think at length? Our answer is intentionally cautious. Static tokenization probes are mostly solved by GPT-5.5 in our run. The stronger stressor is exact execution over mutable state: many small updates, no algebraic shortcut, and a high-entropy final answer. But this is not a universal frontier failure. On the controlled LUT task, GPT-5.5 fails sharply at longer horizons while Opus 4.8 remains much stronger. The interesting signal is therefore model-specific reliability, not a single leaderboard claim.
+This paper asks a plain question: what still goes wrong when a frontier reasoning model is allowed to think at length? Our answer is deliberately modest. In our run, GPT-5.5 has essentially learned to see: isolated character probes are nearly saturated. What it has not reliably learned is to keep its hands steady through a long job --- replaying many small edits where each one depends on the ones before, with no shortcut and an exact final answer. And even that failure is not universal: on our controlled lookup-table task, GPT-5.5 collapses at longer horizons while Opus 4.8 barely slows down. The interesting signal is model-specific reliability, not a single leaderboard number.
 
-SUPERCUTE is designed to expose this boundary while keeping the evaluation auditable. Every task has deterministic ground truth. The grader accepts exact answers and robustly extracts final answers from verbose model responses. The benchmark avoids manual judging for its core score. It also avoids tasks that are hard only because they require tools, such as computing a cryptographic hash.
+SUPERCUTE keeps the whole evaluation auditable. Every task has ground truth computed by deterministic code. The grader accepts exact answers and extracts final answers from verbose responses. There is no manual judging in the core score, and no task is hard only because it secretly requires a tool, such as computing a cryptographic hash.
 
 We make four contributions:
 \begin{itemize}
-  \item A negative result: tokenizer perception is near-saturated for GPT-5.5 on our battery.
-  \item RealTok: eight realistic exact-state workflows that place tokenizer-sensitive details inside human-relevant work.
+  \item A negative result: character perception is near-saturated for GPT-5.5 on our battery.
+  \item RealTok: eight workflows modeled on real jobs --- CRM edit replay, invoice cleanup, legal redline merges, warehouse reconciliation --- where the score is the exact final state.
   \item A controlled pilot break curve for shortcut-free full-state execution, plus a simple compounding-error fit.
-  \item PublicLift: released templates for turning finance tables, contracts, receipts, logs, code traces, software patches, and spreadsheets into fresh exact-state tasks. These templates are not scored in the supplied run.
+  \item PublicLift: templates that turn finance tables, contracts, receipts, logs, code traces, software patches, and spreadsheets into fresh exact-state tasks. These templates are not scored in this run.
 \end{itemize}
 
 \section{Related Work}
 \paragraph{Tokenizer and character understanding.}
-CUTE tests whether models can manipulate characters despite operating over tokens \citep{edman2024cute}. CharBench scales this idea and separately studies occurrence tracking and positional understanding \citep{uzan2026charbench}. Byte-level or patch-level architectures such as BLT attempt to reduce dependence on fixed token boundaries \citep{pagnoni2024blt}. SUPERCUTE differs by asking when a reasoning model that can solve isolated character probes still fails in exact workflows.
+CUTE tests whether models can manipulate characters despite operating over tokens \citep{edman2024cute}. CharBench scales this idea and separately studies occurrence tracking and positional understanding \citep{uzan2026charbench}. Byte-level or patch-level architectures such as BLT attempt to reduce dependence on fixed token boundaries \citep{pagnoni2024blt}. SUPERCUTE asks the next question: when a reasoning model can already pass isolated character probes, where does it still fail in realistic work?
 
 \paragraph{Long-horizon execution.}
-Several recent studies argue that long tasks fail because small errors compound. The Illusion of Diminishing Returns studies long-horizon execution and shows that single-step quality can turn into task-length limits \citep{herel2025illusion}. Work on finite-state-machine execution isolates state maintenance over long horizons \citep{fsm2025procedural}. Long-context benchmarks such as RULER and NoLiMa show that retrieval-like success is not enough when lexical overlap, multi-hop tracing, and aggregation become harder \citep{hsieh2024ruler,keren2025nolima}. SUPERCUTE focuses on exact mutable state rather than broad QA.
+Several recent studies argue that long tasks fail because small errors pile up. The Illusion of Diminishing Returns shows how single-step quality turns into task-length limits \citep{herel2025illusion}. Work on finite-state-machine execution isolates state maintenance over long horizons \citep{fsm2025procedural}. Long-context benchmarks such as RULER and NoLiMa show that finding a fact in a long context is not the same as working with it \citep{hsieh2024ruler,keren2025nolima}. SUPERCUTE focuses on exact mutable state rather than broad QA.
 
 \paragraph{Real-world substrates.}
-Public datasets offer realistic records and automatic or semi-automatic oracles. FinQA and TAT-QA use financial reports and tables \citep{chen2021finqa,zhu2022tatqa}; TabFact and WikiTableQuestions use semi-structured tables \citep{chen2020tabfact,pasupat2015wikitq}; SpreadsheetBench is built from real spreadsheet problems \citep{ma2024spreadsheetbench}; CRUXEval tests code execution and input/output reasoning \citep{gu2024cruxeval}; SWE-bench evaluates patches for real GitHub issues \citep{jimenez2024swebench}; CUAD and ContractNLI cover legal contracts \citep{hendrycks2021cuad,koreeda2021contractnli}; CORD and DocVQA cover document and receipt extraction \citep{park2019cord,mathew2021docvqa}; LogHub collects real system logs \citep{zhu2023loghub}. PublicLift uses these datasets as substrates, not as static questions.
+Public datasets offer realistic records and automatic or semi-automatic oracles. FinQA and TAT-QA use financial reports and tables \citep{chen2021finqa,zhu2022tatqa}; TabFact and WikiTableQuestions use semi-structured tables \citep{chen2020tabfact,pasupat2015wikitq}; SpreadsheetBench is built from real spreadsheet problems \citep{ma2024spreadsheetbench}; CRUXEval tests code execution \citep{gu2024cruxeval}; SWE-bench evaluates patches for real GitHub issues \citep{jimenez2024swebench}; CUAD and ContractNLI cover legal contracts \citep{hendrycks2021cuad,koreeda2021contractnli}; CORD and DocVQA cover receipts and documents \citep{park2019cord,mathew2021docvqa}; LogHub collects real system logs \citep{zhu2023loghub}. PublicLift uses these datasets as raw material, not as static questions.
 
 \section{Benchmark Design}
 SUPERCUTE uses generators rather than fixed puzzles. A generator receives a random seed and returns a prompt, answer, kind, and metadata. This gives fresh variants, exact ground truth, and cheap self-checking.
@@ -70,39 +70,39 @@ A task is included only if it meets four requirements.
 \begin{itemize}
   \item \textbf{Exact oracle.} The answer is computed by deterministic code.
   \item \textbf{No hidden tool dependency.} A model should not need a calculator, code interpreter, or web browser.
-  \item \textbf{No easy shortcut in the hard tier.} Linear rules, last-write-wins fields, and single accumulators are useful diagnostics but not final breakers.
-  \item \textbf{Realistic contact point.} In RealTok and PublicLift, the hard detail should look like work a person might delegate: merging redlines, replaying patches, cleaning receipts, reconciling ledgers, or auditing logs.
+  \item \textbf{No easy shortcut in the hard tier.} If a model can skip most of the history --- because only the last write matters, or a formula gives the answer --- the task is a diagnostic, not a breaker.
+  \item \textbf{Realistic contact point.} In RealTok and PublicLift, the hard detail should look like work a person might hand off: merging redlines, replaying patches, cleaning receipts, reconciling ledgers, auditing logs.
 \end{itemize}
 
 \subsection{Scored tiers}
 \paragraph{Tok.}
-The tokenizer perception tier includes 19 tasks: homoglyph counting and localization, zero-width characters, combining marks, Unicode normalization, case-folding expansion, astral code points, code point and UTF-8 byte reporting, confusable digits, large-number digit operations, grapheme segmentation, and related probes.
+The character perception tier includes 19 tasks: can the model spot a Cyrillic look-alike letter, find a zero-width character hiding in an ID, tell two Unicode normalization forms apart, report code points and UTF-8 byte lengths, catch confusable digits, and segment graphemes correctly?
 
 \paragraph{RealTok.}
-RealTok includes eight realistic exact-state workflows. Examples include reconstructing a CRM field from cursor edits, applying a ticket-board JSON patch stream, cleaning a Unicode-noisy invoice CSV, auditing synthetic redaction leaks, merging contract redlines, reconciling warehouse scans, reconstructing a clinical sequence, and merging localization strings.
+RealTok includes eight workflows modeled on real jobs: reconstructing a CRM field from a support agent's cursor edits, applying a ticket-board JSON patch stream, cleaning a Unicode-noisy invoice CSV, auditing synthetic redaction leaks, merging contract redlines, reconciling warehouse barcode scans, reconstructing a clinical sequence, and merging localization string tables. The score is always the exact final state.
 
 \paragraph{LUT.}
 The \task{iterated\_lut} tier is a controlled stress test. It samples a random $10\times10$ transition table $T$ and a digit string $s$ of width $L=22$. Each round applies
 \[
     s'_{i} = T[s_i][s_{i+1}],
 \]
-with wraparound. We vary the number of rounds $K\in\{15,30,45,60,75\}$, giving 330 to 1650 interdependent cell updates. Because $T$ is random and the whole state changes, the task has no known simple closed form. Since $L$ is fixed in the supplied run, this is a depth sweep, not a two-dimensional width-by-depth study.
+with wraparound. We vary the number of rounds $K\in\{15,30,45,60,75\}$, giving 330 to 1650 dependent cell updates. Because $T$ is random and the whole state changes every round, there is no known closed form and no way to skip ahead. Since $L$ is fixed in this run, this is a depth sweep, not a two-dimensional width-by-depth study.
 
 \paragraph{PublicLift release tier.}
-PublicLift is released infrastructure, not scored evidence in this paper. It provides hardened templates for public data records. The public record supplies realism; a seeded changelog supplies freshness and anti-contamination; a Python oracle supplies the exact label. The templates intentionally do not redistribute third-party rows.
+PublicLift is released infrastructure, not scored evidence in this paper. Each template takes a public record --- a financial table, a contract, a receipt, a log --- and generates a fresh seeded changelog against it. The public record supplies realism; the fresh changelog defeats memorization; a Python oracle supplies the exact label. The templates do not redistribute third-party rows.
 
 \section{Experimental Setup}
 We evaluated six reasoning-enabled models through OpenRouter in June 2026: GPT-5.5, Claude Opus 4.8, DeepSeek V4 Pro, MiniMax M3, Qwen 3.7 Plus, and Qwen 3.5 Flash. Temperature was set to 0. The Tok and RealTok tiers use $n=8$ variants per task. The LUT break curve uses $n=8$ variants for each model and each value of $K$. We report exact-match accuracy and Wilson 95\% confidence intervals.
 
 The raw run contains 1536 model calls. Thirteen provider or transport errors are kept in the raw JSONL but dropped from scored denominators, leaving 1523 scored rows. This explains denominators such as 33/62 and 4/37. Tables report scored denominators, and the release preserves the dropped-error counts.
 
-The grader first looks for explicit answer markers and otherwise extracts the final answer-like span from the end of the response. This matters because reasoning models often produce long explanations before the final answer. We validated the extractor against raw model outputs before scoring. A free self-check verifies that every generator's own answer is accepted by both the strict and robust grader.
+The grader first looks for explicit answer markers and otherwise extracts the final answer-like span from the end of the response. This matters because reasoning models often explain at length before answering. We validated the extractor against raw model outputs before scoring. A free self-check verifies that every generator's own answer is accepted by both the strict and robust grader.
 
-Reasoning budget is a major confound. Models expose and use reasoning tokens differently, and some providers report hidden reasoning separately while others mainly expose total completion tokens. We therefore report token counts for the LUT tier and interpret within-model curves as more stable than cross-model rankings. Even the within-model curve should be treated as a pilot because $n=8$ per cell is small.
+Reasoning budget is a major confound. Models expose and spend reasoning tokens differently, and some providers report hidden reasoning separately while others mainly expose total completion tokens. We therefore report token counts for the LUT tier and trust within-model curves more than cross-model rankings. Even the within-model curve is a pilot, because $n=8$ per cell is small.
 
 \section{Results}
-\subsection{Finding 1: tokenizer perception is mostly solved for GPT-5.5}
-Table~\ref{tab:tok} shows the Tok tier. GPT-5.5 solves 149 of 152 items. The remaining errors are not concentrated in Unicode perception. They appear in long-run counting and related static exactness tasks. This means isolated tokenizer friction is not enough to break the strongest model in our run.
+\subsection{Finding 1: GPT-5.5 can see the characters}
+Table~\ref{tab:tok} shows the Tok tier. GPT-5.5 solves 149 of 152 items. Its few misses are not in Unicode perception at all; they are in long-run counting and similar static exactness tasks. Tricky characters on their own --- look-alike letters, invisible characters, normalization traps --- are not enough to break the strongest model in our run.
 
 \begin{table}[t]
 \centering
@@ -119,12 +119,12 @@ Opus 4.8 & 128/152 & 0.842 & [0.776, 0.892] \\
 Qwen 3.5 Flash & 121/152 & 0.796 & [0.725, 0.852] \\
 \bottomrule
 \end{tabular}
-\caption{Tokenizer perception tier. These probes stratify models, but they do not break GPT-5.5 in this run.}
+\caption{Character perception tier. These probes separate weaker models from stronger ones, but they do not break GPT-5.5 in this run.}
 \label{tab:tok}
 \end{table}
 
-\subsection{Finding 2: realistic mutable workflows are harder}
-Table~\ref{tab:realtok} shows the RealTok tier. The same kinds of character details become harder when they are part of a task with mutable state. GPT-5.5 remains best, but drops to 50/64. Qwen 3.5 Flash falls to 14/64.
+\subsection{Finding 2: doing real work with those characters is harder}
+Table~\ref{tab:realtok} shows the RealTok tier. The same character details become much harder when they sit inside a job with state that keeps changing. GPT-5.5 remains best but drops to 50/64. Qwen 3.5 Flash falls to 14/64.
 
 \begin{table}[t]
 \centering
@@ -141,23 +141,23 @@ Qwen 3.7 Plus & 20/60 & 0.333 & [0.227, 0.459] \\
 Qwen 3.5 Flash & 14/64 & 0.219 & [0.135, 0.334] \\
 \bottomrule
 \end{tabular}
-\caption{RealTok tier. Tokenizer-sensitive details are embedded in realistic exact-state work. Denominators below 64 reflect dropped provider/transport errors.}
+\caption{RealTok tier: character-exact details embedded in realistic jobs. Denominators below 64 reflect dropped provider/transport errors.}
 \label{tab:realtok}
 \end{table}
 
-The hardest RealTok tasks are edit replay tasks. CRM field reconstruction scores 2/8 for GPT-5.5 and 0/8 for every other model. Legal redline merge scores 3/8 for GPT-5.5, 2/8 for Opus, and 0/8 for the other models. This is consistent with the hypothesis that moving cursors, shifting positions, and preserving exact text create many chances for small errors.
+The hardest RealTok tasks are the edit-replay ones. Reconstructing a CRM field from a stream of cursor edits scores 2/8 for GPT-5.5 and 0/8 for every other model. Merging sequential legal redlines scores 3/8 for GPT-5.5, 2/8 for Opus, and 0/8 for the rest. This fits a simple picture: moving cursors, shifting positions, and exact text preservation give a model many small chances to slip, and one slip is enough.
 
-One RealTok task is intentionally instructive: \task{json\_patch\_ticket\_board} is easy for every model. Most fields are last-write-wins, so a model can skip much of the history. This is a design warning. A hard benchmark needs full-state updates that resist compression.
+One RealTok task is intentionally instructive: \task{json\_patch\_ticket\_board} is easy for every model. Most of its fields are last-write-wins, so a model can ignore most of the history and still be right. That is a design warning for benchmark builders: if the history can be compressed, it will be.
 
-\subsection{Finding 3: LUT exposes model-specific long-horizon failures}
-Figure~\ref{fig:breakcurve} and Table~\ref{tab:lut} show the LUT break curve. GPT-5.5 falls sharply as the number of interdependent updates increases: 7/8 at $K=15$, 4/8 at $K=30$, 3/8 at $K=45$, 0/8 at $K=60$, and 1/8 at $K=75$. These are complete answers with normal stop reasons, not truncated outputs.
+\subsection{Finding 3: long horizons break models one at a time, not all at once}
+Figure~\ref{fig:breakcurve} and Table~\ref{tab:lut} show the LUT break curve. GPT-5.5 falls sharply as the number of dependent updates grows: 7/8 at $K=15$, 4/8 at $K=30$, 3/8 at $K=45$, 0/8 at $K=60$, and 1/8 at $K=75$. These are complete answers with normal stop reasons, not truncated outputs. The model finishes the job; it just loses the state along the way.
 
-However, the curves are not monotonic and the cells are small. GPT-5.5 goes from 0/8 at $K=60$ back to 1/8 at $K=75$, while Opus dips to 6/8 at $K=45$ and recovers to 8/8 at $K=60$. The correct interpretation is not ``longer always lowers accuracy'' from these $n=8$ cells. It is that random full-state execution produces noisy but visible model-specific reliability differences.
+The curves are not monotonic, and the cells are small. GPT-5.5 goes from 0/8 at $K=60$ back to 1/8 at $K=75$, while Opus dips to 6/8 at $K=45$ and recovers to 8/8 at $K=60$. So the right reading is not ``longer always means worse'' from these $n=8$ cells. It is that shortcut-free full-state execution produces noisy but visible reliability differences between models.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.76\linewidth]{figures/breakcurve.png}
-\caption{Long-horizon execution pilot for \task{iterated\_lut}. The x-axis is $22\times K$ interdependent updates. Error bars are Wilson 95\% intervals. The jagged curves show why larger $n$ is needed before drawing fine-grained ordering claims.}
+\caption{Long-horizon execution pilot for \task{iterated\_lut}. The x-axis is $22\times K$ dependent updates. Error bars are Wilson 95\% intervals. The jagged curves show why larger $n$ is needed before drawing fine-grained ordering claims.}
 \label{fig:breakcurve}
 \end{figure*}
 
@@ -180,10 +180,10 @@ Qwen 3.7 Plus & 4/37 & 0.108 & [0.043, 0.247] \\
 \label{tab:lut}
 \end{table}
 
-The result is also entangled with reasoning budget. At $K=60$, GPT-5.5 averages about 16.8k completion tokens and scores 0/8. Opus averages about 34.8k completion tokens and scores 8/8. GPT-5.5's token use rises from $K=15$ to $K=45$ and then nearly plateaus, while Opus completion length continues to grow with $K$. But budget alone cannot explain all results: Qwen 3.5 Flash reaches about 87k completion tokens at $K=75$ and still scores 0/8. The safer conclusion is that token budget and per-step precision interact.
+The result is also entangled with how much thinking each model does. At $K=60$, GPT-5.5 averages about 16.8k completion tokens and scores 0/8. Opus averages about 34.8k completion tokens and scores 8/8. GPT-5.5's token use rises from $K=15$ to $K=45$ and then nearly plateaus, while Opus keeps writing more as $K$ grows. But spending more is not enough by itself: Qwen 3.5 Flash reaches about 87k completion tokens at $K=75$ and still scores 0/8. The safer conclusion is that token budget and per-step precision interact.
 
 \subsection{A simple compounding-error fit}
-The long-horizon framing predicts that final exact accuracy should decay as small execution errors accumulate. To summarize the jagged curves, we fit the one-parameter model
+If small execution errors pile up, final exact accuracy should decay with task length. To summarize the jagged curves, we fit the one-parameter model
 \[
     P(\text{correct}\mid K,m) = r_m^K = q_m^{22K},
 \]
@@ -209,14 +209,14 @@ Qwen 3.7 Plus & 0.9359 & 0.996993 & 230 \\
 \label{tab:fit}
 \end{table}
 
-The fit clarifies the model-specific story. Opus has a much longer fitted half-life than GPT-5.5 on this task, which is consistent with its 33/40 overall score. GPT-5.5 is not the best model on LUT despite being strongest on Tok and RealTok. This undercuts any universal claim that all frontier models share the same long-horizon wall.
+The fit makes the model-specific story concrete. Opus has a fitted half-life of about 3459 updates on this task, six times GPT-5.5's 576, which matches its 33/40 overall score. GPT-5.5 is not the best model on LUT despite being strongest on Tok and RealTok. That alone rules out any claim that all frontier models share the same long-horizon wall.
 
 \section{PublicLift: Using Public Data to Go Harder}
-Public datasets are useful, but reusing their original questions is not enough. Many original labels are low entropy, contaminated, or answerable by retrieval. PublicLift uses a procedural lift:
+Public datasets are useful, but reusing their original questions is not. Many original labels are short, possibly memorized, or answerable by lookup. PublicLift uses a procedural lift instead:
 \[
     \text{public record} + \text{fresh changelog} \rightarrow \text{new exact-state task}.
 \]
-The changelog is generated at evaluation time. It contains realistic operations, Unicode-confusable identifiers, and many state updates. The oracle replays the same operations in Python and emits the final answer. In this paper PublicLift should be read as a release contribution and future evaluation direction, not as a scored result.
+The changelog is generated at evaluation time. It contains realistic operations, Unicode-confusable identifiers, and many state updates. The oracle replays the same operations in Python and emits the final answer. In this paper PublicLift is a release contribution and a future evaluation direction, not a scored result.
 
 \begin{table*}[t]
 \centering
@@ -239,23 +239,23 @@ PublicLift task & Public substrate family & Exact target \\
 \label{tab:publiclift}
 \end{table*}
 
-This design makes the benchmark harder and more realistic. A finance task becomes a restatement rollforward, not a single table question. A contract task becomes an amendment merge, not clause classification. A receipt task becomes OCR correction and reconciliation, not one-field extraction. A software task becomes current-line patch replay, not only issue summarization. PublicLift gives the benchmark a path from controlled synthetic stress tests to human-relevant work, but it still needs a paid multi-model sweep before becoming an empirical claim.
+The lift makes each task look like the job a person would actually delegate. A finance task becomes ``apply this quarter's restatements and roll the segment totals forward,'' not a single table question. A contract task becomes ``merge these five amendments and show me the final clause,'' not clause classification. A receipt task becomes OCR cleanup plus reconciliation, not one-field extraction. A software task becomes ``replay these patches and tell me what is on each line now,'' not issue summarization. PublicLift gives the benchmark a path from controlled synthetic stress tests to human-relevant work, but it still needs a paid multi-model sweep before becoming an empirical claim.
 
 \section{Code Release}
-The release is organized as a normal Python package. It includes a registry of scenario generators, an OpenAI-compatible API client, strict and robust graders, sweep and benchmark runners, public-data adapter skeletons, analysis scripts, tests, CI, and documentation. The package has no required runtime dependencies beyond the Python standard library. Optional extras support plotting, datasets, and development.
+The release is a normal Python package: a registry of scenario generators, an OpenAI-compatible API client, strict and robust graders, sweep and benchmark runners, public-data adapter skeletons, analysis scripts, tests, CI, and documentation. The package needs nothing beyond the Python standard library at runtime. Optional extras support plotting, datasets, and development.
 
-The release commands are deliberately short. Run \task{python -m supercute.selfcheck} for the full local oracle check. Module-level self-checks use \task{python -m supercute.sweep --module <name> --self}, where \task{<name>} can be \task{tok}, \task{realtok}, \task{hard}, or \task{publiclift}. A paid model sweep only requires an OpenAI-compatible endpoint and API key. The full evaluation harness can optionally write raw prompts, oracle answers, and model responses for manual failure analysis.
+The commands are deliberately short. Run \task{python -m supercute.selfcheck} for the full local oracle check. Module-level self-checks use \task{python -m supercute.sweep --module <name> --self}, where \task{<name>} can be \task{tok}, \task{realtok}, \task{hard}, or \task{publiclift}. A paid model sweep only requires an OpenAI-compatible endpoint and API key. The full evaluation harness can optionally write raw prompts, oracle answers, and model responses for manual failure analysis.
 
 \section{Limitations and Next Experiments}
-The supplied model results come from one provider route and one time window. Reasoning models are not fully deterministic, even at temperature 0. Reasoning budgets differ across models and endpoints, so absolute cross-model rankings should be read with token spend. The LUT cells use only $n=8$, which makes the break curves jagged and the Wilson intervals wide. A convincing follow-up should use at least 30 to 50 variants per cell.
+These results come from one provider route and one time window. Reasoning models are not fully deterministic, even at temperature 0. Reasoning budgets differ across models and endpoints, so cross-model rankings should be read alongside token spend. The LUT cells use only $n=8$, which makes the break curves jagged and the Wilson intervals wide. A convincing follow-up should use at least 30 to 50 variants per cell.
 
-The LUT sweep fixes width $L=22$ and varies depth $K$, so it cannot identify whether width or depth is the dominant driver. A two-dimensional $L\times K$ grid is needed. We also do not include a human baseline. That matters because some RealTok tasks are framed as delegated work; the benchmark should verify that trained humans can complete representative items reliably with enough time. Finally, exact-match grading is intentionally strict. The supplied scored JSONL does not include raw responses, so this paper cannot provide a full failure taxonomy. The revised release adds an optional raw-output audit path for future runs.
+The LUT sweep fixes width $L=22$ and varies depth $K$, so it cannot say whether width or depth matters more; a two-dimensional $L\times K$ grid is needed. We also have no human baseline. That matters because RealTok tasks are framed as delegated work, and the benchmark should verify that careful humans can do representative items reliably given enough time. Finally, exact-match grading is intentionally strict, and the scored JSONL from this run does not include raw responses, so this paper cannot offer a full failure taxonomy. The release adds an optional raw-output audit path for future runs.
 
 \section{Conclusion}
-SUPERCUTE started as a tokenizer-friction benchmark, but the supplied data point to a narrower and more useful claim. Isolated tokenizer perception is largely solved for GPT-5.5 in this run. Realistic exact-state workflows are harder. A random full-state LUT task reveals sharp failures for some models, including GPT-5.5, but not for all frontier models: Opus is much stronger on the same tier. The benchmark lesson is therefore practical rather than universal: measure exact state updates, remove shortcuts, report denominators and token budgets, and treat long-horizon execution as a model-specific reliability problem.
+SUPERCUTE started from a suspicion that tokenizers were still the weak point, and the data said otherwise. GPT-5.5 can see homoglyphs, invisible characters, and normalization traps almost perfectly. What it cannot always do is the long, careful part of real work: replaying dozens of CRM edits, merging sequential redlines, or carrying a 22-digit state through 1320 dependent updates without dropping it. And even that weakness is model-specific --- Opus 4.8 handles the same long task far better. The practical lesson for benchmark builders: measure exact state updates, remove shortcuts, report denominators and token budgets, and treat long-horizon execution as a per-model reliability question rather than a frontier-wide wall.
 
 \section*{Reproducibility Statement}
-The released artifact contains source code, raw supplied results, summary tables, the figure generator, tests, CI configuration, and this LaTeX source. Core tasks are deterministic and self-checkable without model calls. The raw supplied results include provider/transport errors so denominator choices can be audited.
+The released artifact contains source code, raw results, summary tables, the figure generator, tests, CI configuration, and this LaTeX source. Core tasks are deterministic and self-checkable without model calls. The raw results include provider/transport errors so denominator choices can be audited.
 
 \begin{thebibliography}{99}\small
 \bibitem[Edman et~al.(2024)]{edman2024cute} Edman, L., Schmid, H., and Fraser, A. CUTE: Measuring LLMs' understanding of their tokens. EMNLP, 2024.

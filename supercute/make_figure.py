@@ -16,7 +16,8 @@ OUT = os.path.join(HERE, "..", "paper", "figures", "breakcurve.png")
 
 MARK = {"GPT-5.5": ("o", "#1f77b4"), "Opus 4.8": ("s", "#d62728"),
         "DeepSeek V4 Pro": ("D", "#9467bd"), "MiniMax M3": ("v", "#ff7f0e"),
-        "Qwen 3.7 Plus": ("P", "#8c564b"), "Qwen 3.5 Flash": ("^", "#2ca02c")}
+        "Qwen 3.7 Plus": ("P", "#8c564b"), "Qwen 3.5 Flash": ("^", "#2ca02c"),
+        "Nex-N2-Pro": ("*", "#17becf"), "Fable 5": ("X", "#e377c2")}
 
 
 def main():

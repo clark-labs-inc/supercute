@@ -28,8 +28,10 @@ SHORT = {
     "minimax/minimax-m3": "MiniMax M3",
     "qwen/qwen3.7-plus": "Qwen 3.7 Plus",
     "qwen/qwen3.5-flash-02-23": "Qwen 3.5 Flash",
+    "nex-agi/nex-n2-pro:free": "Nex-N2-Pro",
+    "anthropic/claude-fable-5": "Fable 5",
 }
-ORDER = ["GPT-5.5", "Opus 4.8", "DeepSeek V4 Pro", "MiniMax M3", "Qwen 3.7 Plus", "Qwen 3.5 Flash"]
+ORDER = ["GPT-5.5", "Opus 4.8", "Fable 5", "DeepSeek V4 Pro", "MiniMax M3", "Qwen 3.7 Plus", "Qwen 3.5 Flash", "Nex-N2-Pro"]
 LUT_L = 22
 
 

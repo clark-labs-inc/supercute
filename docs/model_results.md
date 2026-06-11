@@ -1,6 +1,6 @@
-# Supplied model results
+# Model results
 
-The supplied run evaluated six reasoning-enabled models through OpenRouter in June 2026:
+The June 2026 run evaluated six reasoning-enabled models through OpenRouter:
 
 - `openai/gpt-5.5`
 - `anthropic/claude-opus-4.8`
@@ -11,33 +11,33 @@ The supplied run evaluated six reasoning-enabled models through OpenRouter in Ju
 
 The run has three **scored** tiers:
 
-1. `tok`: 19 tokenizer-perception probes, n=8 per task.
-2. `realtok`: 8 realistic exact-state workflows, n=8 per task.
+1. `tok`: 19 character-perception probes (homoglyphs, zero-width characters, normalization, graphemes, bytes), n=8 per task.
+2. `realtok`: 8 real-life workflows (CRM edit replay, invoice cleanup, legal redlines, warehouse scans, and more), n=8 per task.
 3. `lut`: `iterated_lut` break curve at K = 15, 30, 45, 60, 75 with L = 22.
 
-`publiclift` is included in the release as self-checked infrastructure and dataset-hardening templates, but it is not part of the supplied paid model results.
+`publiclift` ships in the release as self-checked infrastructure and dataset-hardening templates, but it was not part of the paid model run.
 
 ## Denominators
 
-The raw run contains 1536 calls. Thirteen provider/transport errors are preserved in `data/eval_results.jsonl` with `err=true` and dropped from scored denominators, leaving 1523 scored rows. This is why RealTok and Qwen 3.7 Plus LUT denominators vary.
+The raw run contains 1536 calls. Thirteen provider/transport errors are preserved in `data/eval_results.jsonl` with `err=true` and dropped from scored denominators, leaving 1523 scored rows. This is why the RealTok and Qwen 3.7 Plus LUT denominators vary.
 
 ## Tier-level accuracy
 
 | Tier | GPT-5.5 | Opus 4.8 | DeepSeek V4 Pro | MiniMax M3 | Qwen 3.7 Plus | Qwen 3.5 Flash |
 |---|---:|---:|---:|---:|---:|---:|
-| Tokenization perception | 0.980 | 0.842 | 0.895 | 0.849 | 0.862 | 0.796 |
+| Character perception | 0.980 | 0.842 | 0.895 | 0.849 | 0.862 | 0.796 |
 | RealTok | 0.781 | 0.524 | 0.532 | 0.410 | 0.333 | 0.219 |
 | `iterated_lut` break curve | 0.375 | 0.825 | 0.400 | 0.250 | 0.108 | 0.275 |
 
-Interpret the `iterated_lut` table with token spend. At K=60, GPT-5.5 averages about 16.8k completion tokens and scores 0/8; Opus 4.8 averages about 34.8k completion tokens and scores 8/8. GPT-5.5's token use rises through K=45 and then mostly plateaus, while Opus output length continues growing with K. Smaller models can spend even more tokens and still fail, so budget is important but not sufficient.
+Read the `iterated_lut` row alongside token spend. At K=60, GPT-5.5 averages about 16.8k completion tokens and scores 0/8; Opus 4.8 averages about 34.8k completion tokens and scores 8/8. GPT-5.5's token use rises through K=45 and then mostly plateaus, while Opus keeps writing more as K grows. Smaller models can spend even more tokens and still fail, so budget matters but is not enough by itself.
 
 ## Important negative result
 
-GPT-5.5 did not break on static tokenizer perception. It was near-perfect on homoglyphs, zero-width characters, combining marks, Unicode normalization, code points, UTF-8 byte length, confusable digits, and grapheme segmentation.
+GPT-5.5 did not break on character perception. It was near-perfect at spotting homoglyphs, zero-width characters, combining marks, Unicode normalization differences, code points, UTF-8 byte lengths, confusable digits, and grapheme boundaries.
 
 ## Strongest positive result
 
-The strongest positive result is not a universal frontier claim. It is a **model-specific reliability result**: shortcut-free full-state execution exposes sharp failures for GPT-5.5 and several other models, while Opus 4.8 is much stronger on the same LUT tier.
+The strongest positive result is not a universal frontier claim. It is a **model-specific reliability result**: when a task requires carrying exact state through hundreds of dependent updates with no shortcut, GPT-5.5 and several other models fail sharply, while Opus 4.8 stays strong on the same tier.
 
 The descriptive compounding fit from `python -m supercute.analyze_eval` estimates:
 

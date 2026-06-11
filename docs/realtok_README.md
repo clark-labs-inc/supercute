@@ -1,21 +1,21 @@
-# SUPERCUTE-RealTok Upgrade
+# RealTok: character-exact details inside real jobs
 
-This patch adds `supercute/scenarios_realtok.py`, a realistic tokenizer-friction tier for SUPERCUTE.
+`supercute/scenarios_realtok.py` is the tier that puts tricky characters where they actually show up: inside long, real-life workflows.
 
 ## Why this tier exists
 
-The prior tokenizer probes show that GPT-5.5 can usually perceive Unicode, bytes, code points, invisibles, homoglyphs, and static character properties when the task is short and explicit. The reliable failure mechanism is not isolated perception; it is **exact character state under long, realistic workflows**.
+The perception probes show that GPT-5.5 can usually see Unicode, bytes, code points, invisible characters, and homoglyphs when a task is short and explicit. The reliable failure mode is different: keeping exact character state correct through a long, realistic job, where each step depends on the ones before.
 
-RealTok therefore embeds tokenizer-sensitive details inside work-like tasks:
+RealTok therefore puts character-sensitive details inside work-like tasks:
 
-- CRM/support typing reconstruction
-- API ticket-board patch logs
-- messy CSV invoice cleanup
-- compliance redaction audit over obfuscated synthetic PII
-- legal redline merge
-- warehouse SKU scan reconciliation
-- clinical CIGAR-like sequence reconstruction
-- localization string-table merge
+- replaying a support agent's cursor edits to reconstruct a CRM field
+- applying a stream of JSON patches to a ticket board
+- cleaning a messy, Unicode-noisy invoice CSV
+- auditing redactions over obfuscated synthetic PII
+- applying sequential legal redlines to a contract
+- reconciling warehouse SKU barcode scans
+- reconstructing a clinical CIGAR-like sequence
+- merging localization string tables
 
 All data is synthetic. No live prompt-injection payloads, malware, or real PII are included.
 
@@ -31,7 +31,7 @@ The module is also merged into `supercute.scenarios.TASKS`, so normal `run.py`/`
 
 ## Calibration guidance
 
-Start with `--per-task 4`. If GPT-5.5 is above 20% on a task, increase that generator’s event count until it is near the 0–10% region. Avoid yes/no or low-entropy answers. Prefer exact JSON/string outputs or line-number sets.
+Start with `--per-task 4`. If GPT-5.5 is above 20% on a task, increase that generator's event count until it lands near the 0-10% region. Avoid yes/no answers or anything with few ways to be wrong. Prefer exact JSON/string outputs or line-number sets.
 
 Recommended hard track:
 
